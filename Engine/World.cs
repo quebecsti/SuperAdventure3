@@ -1,4 +1,4 @@
-﻿using Engine.Engine;
+﻿using Engine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,8 +13,7 @@ namespace Engine
         public static readonly List<Monster> Monsters = new List<Monster>();
         public static readonly List<Quest> Quests = new List<Quest>();
         public static readonly List<Location> Locations = new List<Location>();
-
-
+                
         #region Constant
         public const int ITEM_ID_RUSTY_SWORD = 1;
         public const int ITEM_ID_RAT_TAIL = 2;

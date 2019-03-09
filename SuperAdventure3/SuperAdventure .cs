@@ -1,12 +1,13 @@
 ﻿using Engine;
+using System.Collections.Generic;
 using System.Windows.Forms;
-
 
 namespace SuperAdventure3
 {
     public partial class SuperAdventure : Form
     {
         private Player _player;
+        private Monster _currentMonster;
 
         public SuperAdventure()
         {
@@ -61,6 +62,7 @@ namespace SuperAdventure3
             _player.CurrentLocation = newLocation;
 
             rtbMessages.Text += $"Walked to {_player.CurrentLocation.Name}\n\r";
+
             rtbLocation.Text = _player.CurrentLocation.Description;
 
             btnNorth.Visible = (newLocation.LocationToNorth != null);
@@ -71,9 +73,7 @@ namespace SuperAdventure3
             //heal Player   
             _player.CurrentHitPoints = _player.MaximumHitPoints;
 
-
             //Check For Quest
-
             if (_player.CurrentLocation.QuestAvailableHere != null)
             {
                 bool playerAlreadyHasQuest = false;
@@ -160,7 +160,6 @@ namespace SuperAdventure3
                                 }
                             }
 
-
                             foreach (PlayerQuest pq in _player.Quests)
                             {
                                 pq.IsCompleted = true;
@@ -168,39 +167,154 @@ namespace SuperAdventure3
                             }
                         }
                     }
-
                 }
                 else
                 {
                     //Display received Quest
+                    rtbMessages.Text += $"You received the {newLocation.QuestAvailableHere.Name} quest.\r\n";
+                    rtbMessages.Text += $"{newLocation.QuestAvailableHere.Description}\r\n";
+                    rtbMessages.Text += $"To completet quest, return here with : \n\r";
 
-                    // Add Quest to questList
+
+                    foreach (QuestCompletionItem qci in newLocation.QuestAvailableHere.QuestCompletionItems)
+                    {
+                        if (qci.Quantity == 1)
+                        {
+                            rtbMessages.Text += $"{qci.Quantity.ToString()} {qci.Details.Name}\r\n";
+                        }
+                        else
+                        {
+                            rtbMessages.Text += $"{qci.Quantity.ToString()} {qci.Details.NamePlural}\r\n";
+                        }
+
+                        // Add Quest to questList
+                        _player.Quests.Add(new PlayerQuest(newLocation.QuestAvailableHere));
+                    }
 
                 }
 
-                //Is there Monster at location?
-                if (newLocation.MonsterLivingHere != null)
+
+                UpdateUI();
+            }
+
+            //Is there Monster at location?
+            if (newLocation.MonsterLivingHere != null)
+            {
+                // Display Message monster here
+                rtbMessages.Text += $"You've just encountered a {newLocation.MonsterLivingHere.Name} with {newLocation.MonsterLivingHere.MaximumHitPoints.ToString()} health\r\n";
+
+                // Spawn Monster
+                Monster stdMonster = World.MonsterByID(newLocation.MonsterLivingHere.ID);
+
+                _currentMonster = new Monster(stdMonster.ID, stdMonster.Name, stdMonster.RewardGold, stdMonster.RewardExperiencePoints, stdMonster.RewardGold, stdMonster.CurrentHitPoints, stdMonster.MaximumHitPoints);
+
+                //Set LootTable
+
+                foreach (LootItem li in stdMonster.LootTable)
                 {
-                    // Display Message monster here
-
-                    // Spawn Monster
-
-                    // Combat
-                    ///// change weapon
-                    ///// use potion
-                    ///
-
+                    _currentMonster.LootTable.Add(li);
                 }
-                else
+
+                cboPotions.Visible = true;
+                cboWeapons.Visible = true;
+                btnUsePotion.Visible = true;
+                btnUseWeapon.Visible = true;
+            }
+            else
+            {
+                _currentMonster = null;
+
+                // Hide Combat boxes and buttons
+                cboPotions.Visible = false;
+                cboWeapons.Visible = false;
+                btnUsePotion.Visible = false;
+                btnUseWeapon.Visible = false;
+            }
+
+
+            dgvInventory.Rows.Clear();
+
+            foreach (InventoryItem ii in _player.Inventory)
+            {
+                if (ii.Quantity > 0)
                 {
-                    // Hide Combat boxes and buttons
+                    dgvInventory.Rows.Add(new[] { ii.Details.Name, ii.Quantity.ToString() });
                 }
+            }
 
+            //DatagridView :dgvQuests
+
+            dgvQuests.Rows.Clear();
+
+            foreach (PlayerQuest pq in _player.Quests)
+            {
+                dgvQuests.Rows.Add(new[] { pq.Details.Name, pq.IsCompleted.ToString() });
+            }
+
+            // Update cboWaepon
+
+            List<Weapon> weapons = new List<Weapon>();
+
+            foreach (InventoryItem ii in _player.Inventory)
+            {
+                if (ii.Details is Weapon)
+                {
+                    if (ii.Quantity > 0)
+                    {
+                        weapons.Add((Weapon)ii.Details);
+                    }
+                }
+            }
+
+            if (weapons.Count == 0)
+            {
+                cboWeapons.Visible = false;
+                btnUseWeapon.Visible = false;
+            }
+            else
+            {
+                foreach (Weapon w in weapons)
+                {
+                    cboWeapons.DataSource = weapons;
+                    cboWeapons.DisplayMember = "Name";
+                    cboWeapons.ValueMember = "iD";
+                }
+            }
+
+
+            //update Healing Potion
+
+            List<HealingPotion> healingPotions = new List<HealingPotion>();
+
+            foreach (InventoryItem ii in _player.Inventory)
+            {
+                if (ii.Details is HealingPotion)
+                {
+                    if (ii.Quantity > 0)
+                    {
+                        healingPotions.Add((HealingPotion)ii.Details);
+                    }
+                }
 
             }
-            UpdateUI();
+
+            if (healingPotions.Count == 0)
+            {
+                cboPotions.Visible = false;
+                btnUsePotion.Visible = false;
+
+            }
+            else
+            {
+                cboPotions.DataSource = healingPotions;
+                cboPotions.DisplayMember = "Name";
+                cboPotions.ValueMember = "iD";
+                cboPotions.SelectedIndex = 0;
+            }
         }
 
+
+        #region Movement button
         private void btnNorth_Click(object sender, System.EventArgs e)
         {
             MoveTo(_player.CurrentLocation.LocationToNorth);
@@ -220,5 +334,9 @@ namespace SuperAdventure3
         {
             MoveTo(_player.CurrentLocation.LocationToWest);
         }
+
+        #endregion
+
+
     }
 }
