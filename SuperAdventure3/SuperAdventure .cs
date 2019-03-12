@@ -36,30 +36,56 @@ namespace SuperAdventure3
 
         private void MoveTo(Location newLocation)
         {
-            //Check For requiyired Item
-            if (newLocation.ItemRequiredToEnter != null)
-            {
-                rtbMessages.Text += $"Required to enter is {newLocation.ItemRequiredToEnter.Name}\n\r";
-
-                bool playerHasRequiredItem = false;
-
-                foreach (InventoryItem ii in _player.Inventory)
-                {
-                    if (ii.Details.ID == newLocation.ItemRequiredToEnter.ID)
-                    {
-                        playerHasRequiredItem = true;
-                        rtbMessages.Text += "Turns out you have that Item.";
-                    }
-                }
-
-                if (!playerHasRequiredItem)
-                {
-                    return;
-                }
-            }
 
             //Update Location
             _player.CurrentLocation = newLocation;
+
+            bool playerHasItemToEnterThisLocation = _player.HasRequiredItemToEnterThisLocation(newLocation);
+
+            bool playerAlreadyHasThisQuest = _player.HasThisQuest(newLocation.QuestAvailableHere);
+            bool playerAlreadyCompletedThisQuest = _player.HasCompletedQuest(newLocation.QuestAvailableHere);
+           // bool playerHasAllRequiredItemsForQuests = _player.HasAllRequiredItemsForQuests(newLocation.QuestAvailableHere);
+
+            //Check For requiyired Item
+            if (!playerHasItemToEnterThisLocation)
+            {
+                rtbMessages.Text += $"Required to enter is {newLocation.ItemRequiredToEnter.Name}\n\r";
+                return;
+            }
+
+            //Check for Quest
+            if (!playerAlreadyHasThisQuest)
+            {
+                //Add Quest
+                //Display received Quest
+                rtbMessages.Text += $"You received the {newLocation.QuestAvailableHere.Name} quest.\r\n";
+                rtbMessages.Text += $"{newLocation.QuestAvailableHere.Description}\r\n";
+                rtbMessages.Text += $"To completet quest, return here with : \n\r";
+
+                _player.AddQuestToPlayersQuest(newLocation.QuestAvailableHere);
+            }
+            else
+            {
+                //Check if player Completed Quest
+                if (!playerAlreadyCompletedThisQuest)
+                {
+                    if (playerHasAllRequiredItemsForQuests)
+                    {
+                        _player.RemoveQuestCompletionItem(newLocation.QuestAvailableHere);
+
+                        rtbMessages.Text += $"You have completed the {newLocation.QuestAvailableHere.Name} Quest.\n\r";
+                        rtbMessages.Text += $"You Received {newLocation.QuestAvailableHere.RewardExperiencePoints} XP and {newLocation.QuestAvailableHere.RewardGold} gold\r\n";
+                        rtbMessages.Text += $"You also received {newLocation.QuestAvailableHere.RewardItem}";
+
+                        _player.ExperiencePoints += newLocation.QuestAvailableHere.RewardExperiencePoints;
+                        _player.Gold += newLocation.QuestAvailableHere.RewardGold;
+
+                        _player.AddRewardItem(newLocation.QuestAvailableHere);
+
+                        _player.MarkAsQuestAsComplete(newLocation.QuestAvailableHere);
+                    }
+                }
+            }
 
             rtbMessages.Text += $"Walked to {_player.CurrentLocation.Name}\n\r";
 
@@ -74,128 +100,7 @@ namespace SuperAdventure3
             _player.CurrentHitPoints = _player.MaximumHitPoints;
 
             //Check For Quest
-            if (_player.CurrentLocation.QuestAvailableHere != null)
-            {
-                bool playerAlreadyHasQuest = false;
-                bool playerAlreadyCompletedQuest = false;
-
-                foreach (PlayerQuest pq in _player.Quests)
-                {
-                    if (pq.Details.ID == newLocation.QuestAvailableHere.ID)
-                    {
-                        playerAlreadyHasQuest = true;
-
-                        if (pq.IsCompleted)
-                        {
-                            playerAlreadyCompletedQuest = true;
-                        }
-                    }
-                }
-
-                //Player AHs quest?
-                if (playerAlreadyHasQuest)
-                {
-                    if (!playerAlreadyCompletedQuest)
-                    {
-                        bool playerHasAllItemsToCompleteQuest = true;
-
-                        foreach (QuestCompletionItem qci in newLocation.QuestAvailableHere.QuestCompletionItems)
-                        {
-                            bool foundItemInPlayerInventory = false;
-
-                            foreach (InventoryItem ii in _player.Inventory)
-                            {
-                                if (ii.Details.ID < qci.Quantity)
-                                {
-                                    foundItemInPlayerInventory = false;
-                                    break;
-                                }
-                                break;
-                            }
-
-                            if (!foundItemInPlayerInventory)
-                            {
-                                playerHasAllItemsToCompleteQuest = false;
-                                break;
-                            }
-
-                        }
-
-                        if (playerHasAllItemsToCompleteQuest)
-                        {
-                            rtbMessages.Text += $"You have completed the {newLocation.QuestAvailableHere.Name} Quest.\n\r";
-
-                            foreach (QuestCompletionItem qci in newLocation.QuestAvailableHere.QuestCompletionItems)
-                            {
-                                foreach (InventoryItem ii in _player.Inventory)
-                                {
-                                    if (ii.Details.ID == qci.Details.ID)
-                                    {
-                                        ii.Quantity -= qci.Quantity;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            rtbMessages.Text += $"You Received {newLocation.QuestAvailableHere.RewardExperiencePoints} XP and {newLocation.QuestAvailableHere.RewardGold} gold\r\n";
-                            rtbMessages.Text += $"You also received {newLocation.QuestAvailableHere.RewardItem}";
-
-                            _player.ExperiencePoints += newLocation.QuestAvailableHere.RewardExperiencePoints;
-                            _player.Gold += newLocation.QuestAvailableHere.RewardGold;
-
-                            bool addedItemToPlayerInventory = false;
-
-                            foreach (InventoryItem ii in _player.Inventory)
-                            {
-                                if (ii.Details.ID == newLocation.QuestAvailableHere.RewardItem.ID)
-                                {
-                                    ii.Quantity++;
-                                    addedItemToPlayerInventory = true;
-                                    break;
-                                }
-
-                                if (!addedItemToPlayerInventory)
-                                {
-                                    _player.Inventory.Add(new InventoryItem(newLocation.QuestAvailableHere.RewardItem, 1));
-                                }
-                            }
-
-                            foreach (PlayerQuest pq in _player.Quests)
-                            {
-                                pq.IsCompleted = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    //Display received Quest
-                    rtbMessages.Text += $"You received the {newLocation.QuestAvailableHere.Name} quest.\r\n";
-                    rtbMessages.Text += $"{newLocation.QuestAvailableHere.Description}\r\n";
-                    rtbMessages.Text += $"To completet quest, return here with : \n\r";
-
-
-                    foreach (QuestCompletionItem qci in newLocation.QuestAvailableHere.QuestCompletionItems)
-                    {
-                        if (qci.Quantity == 1)
-                        {
-                            rtbMessages.Text += $"{qci.Quantity.ToString()} {qci.Details.Name}\r\n";
-                        }
-                        else
-                        {
-                            rtbMessages.Text += $"{qci.Quantity.ToString()} {qci.Details.NamePlural}\r\n";
-                        }
-
-                        // Add Quest to questList
-                        _player.Quests.Add(new PlayerQuest(newLocation.QuestAvailableHere));
-                    }
-
-                }
-
-
-                UpdateUI();
-            }
+            _player.HasThisQuest(newLocation.QuestAvailableHere);
 
             //Is there Monster at location?
             if (newLocation.MonsterLivingHere != null)
@@ -232,6 +137,49 @@ namespace SuperAdventure3
             }
 
 
+            /////----------- UI Maintenance ----------------------------------------
+            UpdateInventoryUI();
+            UpdateWeaponUi();
+            UpdateQuestUI();
+            UpdatePotionUI();
+
+        }
+
+        #region Movement button
+        private void btnNorth_Click(object sender, System.EventArgs e)
+        {
+            MoveTo(_player.CurrentLocation.LocationToNorth);
+        }
+
+        private void btnEast_Click(object sender, System.EventArgs e)
+        {
+            MoveTo(_player.CurrentLocation.LocationToEast);
+        }
+
+        private void btnSouth_Click(object sender, System.EventArgs e)
+        {
+            MoveTo(_player.CurrentLocation.LocationToSouth);
+        }
+
+        private void btnWest_Click(object sender, System.EventArgs e)
+        {
+            MoveTo(_player.CurrentLocation.LocationToWest);
+        }
+
+        #endregion
+
+        private void UpdateQuestUI()
+        {
+            dgvQuests.Rows.Clear();
+
+            foreach (PlayerQuest pq in _player.Quests)
+            {
+                dgvQuests.Rows.Add(new[] { pq.Details.Name, pq.IsCompleted.ToString() });
+            }
+        }
+
+        private void UpdateInventoryUI()
+        {
             dgvInventory.Rows.Clear();
 
             foreach (InventoryItem ii in _player.Inventory)
@@ -241,18 +189,10 @@ namespace SuperAdventure3
                     dgvInventory.Rows.Add(new[] { ii.Details.Name, ii.Quantity.ToString() });
                 }
             }
+        }
 
-            //DatagridView :dgvQuests
-
-            dgvQuests.Rows.Clear();
-
-            foreach (PlayerQuest pq in _player.Quests)
-            {
-                dgvQuests.Rows.Add(new[] { pq.Details.Name, pq.IsCompleted.ToString() });
-            }
-
-            // Update cboWaepon
-
+        private void UpdateWeaponUi()
+        {
             List<Weapon> weapons = new List<Weapon>();
 
             foreach (InventoryItem ii in _player.Inventory)
@@ -280,10 +220,10 @@ namespace SuperAdventure3
                     cboWeapons.ValueMember = "iD";
                 }
             }
+        }
 
-
-            //update Healing Potion
-
+        private void UpdatePotionUI()
+        {
             List<HealingPotion> healingPotions = new List<HealingPotion>();
 
             foreach (InventoryItem ii in _player.Inventory)
@@ -312,31 +252,5 @@ namespace SuperAdventure3
                 cboPotions.SelectedIndex = 0;
             }
         }
-
-
-        #region Movement button
-        private void btnNorth_Click(object sender, System.EventArgs e)
-        {
-            MoveTo(_player.CurrentLocation.LocationToNorth);
-        }
-
-        private void btnEast_Click(object sender, System.EventArgs e)
-        {
-            MoveTo(_player.CurrentLocation.LocationToEast);
-        }
-
-        private void btnSouth_Click(object sender, System.EventArgs e)
-        {
-            MoveTo(_player.CurrentLocation.LocationToSouth);
-        }
-
-        private void btnWest_Click(object sender, System.EventArgs e)
-        {
-            MoveTo(_player.CurrentLocation.LocationToWest);
-        }
-
-        #endregion
-
-
     }
 }
