@@ -27,5 +27,22 @@ namespace Engine
 
             LootTable = new List<LootItem>();
         }
+
+        //public void Attack(Player player)
+        //{
+        //    int damageToPlayer = RandomNumberGenerator.NumberBetween(0, MaximumDamage);
+
+        //  //  rtbMessages.Text += $"The {Name} did {damageToPlayer} points of damage. \n\r";
+
+        //    player.CurrentHitPoints -= damageToPlayer;
+            
+        //    if (player.CurrentHitPoints <= 0)
+        //    {
+        //        // player Dead
+        //        rtbMessages.Text += $"The {Name} just killed you.\r\n";
+
+        //        MoveTo(World.LocationByID(World.LOCATION_ID_HOME));
+        //    }
+        //}
     }
 }
